@@ -53,22 +53,53 @@ workflow {
         .map { meta -> ["${meta.barcode_kit}_${meta.barcode}", meta] }
         .set { additional_metadata }
 
+    // -- INPUT HANDLING ------------------------------------------------------
     if (params.basecall) {
         raw_reads = Channel.fromPath("${params.raw_read_dir}/*.{fast5,pod5}", checkIfExists: true)
         BASECALLING(
             raw_reads,
             additional_metadata
         )
+        long_reads_ch  = BASECALLING.out.long_reads_ch
+        pycoqc_json_ch = BASECALLING.out.pycoqc_json
+
+    } else {
+        // Ingest pre-basecalled FASTQs directly.
+        // Scans <fastq_dir>/<barcode>/*.fastq.gz, groups all files per barcode,
+        // and constructs meta.barcode as "<barcode_kit>_<barcode>"
+        // to match the additional_metadata channel key format.
+        //
+        // Example:
+        //   ./data/barcode01/reads_0.fastq.gz  -->  SQK-NBD114-24_barcode01
+        //   ./data/barcode01/reads_1.fastq.gz  /
+        long_reads_ch = Channel
+            .fromPath("${params.fastq_dir}/*/*.{fastq,fastq.gz,fq,fq.gz}")
+            .map { file ->
+                def barcode      = file.parent.name                         // e.g. "barcode01"
+                def full_barcode = "${params.barcode_kit}_${barcode}"       // e.g. "SQK-NBD114-24_barcode01"
+                tuple(full_barcode, file)
+            }
+            .groupTuple()                                                    // group all files per barcode
+            .map { full_barcode, files ->
+                def meta = [
+                    barcode : full_barcode,
+                    id      : full_barcode
+                ]
+                tuple(meta, files.sort())                                    // sort files for reproducibility
+            }
+
+        pycoqc_json_ch = Channel.empty()                                     // no pycoqc without basecalling
     }
+    // ------------------------------------------------------------------------
 
     INDEX_REF(reference)
     | set { reference_index_ch }
 
     PRE_MAP_QC_PRE_TRIM(
-        BASECALLING.out.long_reads_ch
+        long_reads_ch
     )
 
-    BASECALLING.out.long_reads_ch.filter{ meta, bam -> meta.barcode != "unclassified"}
+    long_reads_ch.filter{ meta, reads -> meta.barcode != "unclassified"}
     | set { remove_unclassified_for_mapping }
 
     PROCESS_FILTER_READS(
@@ -95,14 +126,13 @@ workflow {
         target_regions_bed
     )
 
-    //for now until we decide filter logic we can just do some basic variant calling (large unfiltered data though)
     CALL_VARIANTS(
         FILTER_BAM.out.on_target_reads_bam.combine(target_regions_bed),
         reference_index_ch
     )
 
     MULTIQC(
-        BASECALLING.out.pycoqc_json.ifEmpty([]),
+        pycoqc_json_ch.ifEmpty([]),
         PRE_MAP_QC_PRE_TRIM.out.ch_fastqc_raw_zip.collect{it[1]}.ifEmpty([]),
         PRE_MAP_QC_POST_TRIM.out.ch_fastqc_raw_zip.collect{it[1]}.ifEmpty([]),
         MAPPING.out.ch_samtools_stats.collect{it[1,2]}.ifEmpty([]),
