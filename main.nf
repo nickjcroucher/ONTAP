@@ -54,7 +54,7 @@ workflow {
         .set { additional_metadata }
 
     // -- INPUT HANDLING ------------------------------------------------------
-    if (params.basecall) {
+    if (params.basecall == "true") {                                         // explicit string compare
         raw_reads = Channel.fromPath("${params.raw_read_dir}/*.{fast5,pod5}", checkIfExists: true)
         BASECALLING(
             raw_reads,
@@ -70,13 +70,13 @@ workflow {
         // to match the additional_metadata channel key format.
         //
         // Example:
-        //   ./data/barcode01/reads_0.fastq.gz  -->  SQK-NBD114-24_barcode01
-        //   ./data/barcode01/reads_1.fastq.gz  /
+        //   ./data/barcode09/reads_0.fastq.gz  -->  SQK-NBD114-24_barcode09
+        //   ./data/barcode09/reads_1.fastq.gz  /
         long_reads_ch = Channel
             .fromPath("${params.fastq_dir}/*/*.{fastq,fastq.gz,fq,fq.gz}")
             .map { file ->
-                def barcode      = file.parent.name                         // e.g. "barcode01"
-                def full_barcode = "${params.barcode_kit}_${barcode}"       // e.g. "SQK-NBD114-24_barcode01"
+                def barcode      = file.parent.name                         // e.g. "barcode09"
+                def full_barcode = "${params.barcode_kit}_${barcode}"       // e.g. "SQK-NBD114-24_barcode09"
                 tuple(full_barcode, file)
             }
             .groupTuple()                                                    // group all files per barcode
