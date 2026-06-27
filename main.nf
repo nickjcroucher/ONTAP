@@ -82,8 +82,9 @@ workflow {
             .groupTuple()                                                    // group all files per barcode
             .map { full_barcode, files ->
                 def meta = [
-                    barcode : full_barcode,
-                    id      : full_barcode
+                    barcode : full_barcode,                                  // e.g. "SQK-NBD114-24_barcode09"
+                    ID      : full_barcode,                                  // uppercase - matches fastqc.nf tag "${meta.ID}"
+                    id      : full_barcode                                   // lowercase - for any other modules that use meta.id
                 ]
                 tuple(meta, files.sort())                                    // sort files for reproducibility
             }
