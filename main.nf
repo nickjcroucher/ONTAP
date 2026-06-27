@@ -35,6 +35,23 @@ def combine_metadata_maps(barcode, meta1, meta2, reads) {
     [meta1 + meta2, reads]
 }
 
+// Concatenate multiple FASTQ files per barcode into a single file
+// Required because cutadapt only accepts 1-2 input files
+process CAT_FASTQ {
+    tag "${meta.ID}"
+
+    input:
+    tuple val(meta), path(reads)
+
+    output:
+    tuple val(meta), path("${meta.ID}_merged.fastq.gz")
+
+    script:
+    """
+    cat ${reads.sort().join(' ')} > ${meta.ID}_merged.fastq.gz
+    """
+}
+
 workflow {
     if (params.help) {
         printHelp()
@@ -65,13 +82,12 @@ workflow {
 
     } else {
         // Ingest pre-basecalled FASTQs directly.
-        // Scans <fastq_dir>/<barcode>/*.fastq.gz, groups all files per barcode,
-        // and constructs meta.barcode as "<barcode_kit>_<barcode>"
-        // to match the additional_metadata channel key format.
+        // Groups all files per barcode, then concatenates into a single FASTQ
+        // because cutadapt only accepts 1-2 input files.
         //
         // Example:
-        //   ./data/barcode09/reads_0.fastq.gz  -->  SQK-NBD114-24_barcode09
-        //   ./data/barcode09/reads_1.fastq.gz  /
+        //   ./data/barcode09/reads_0.fastq.gz  \
+        //   ./data/barcode09/reads_1.fastq.gz  --> SQK-NBD114-24_barcode09_merged.fastq.gz
         long_reads_ch = Channel
             .fromPath("${params.fastq_dir}/*/*.{fastq,fastq.gz,fq,fq.gz}")
             .map { file ->
@@ -84,10 +100,11 @@ workflow {
                 def meta = [
                     barcode : full_barcode,                                  // e.g. "SQK-NBD114-24_barcode09"
                     ID      : full_barcode,                                  // uppercase - matches fastqc.nf tag "${meta.ID}"
-                    id      : full_barcode                                   // lowercase - for any other modules that use meta.id
+                    id      : full_barcode                                   // lowercase - for any other modules
                 ]
                 tuple(meta, files.sort())                                    // sort files for reproducibility
             }
+            | CAT_FASTQ                                                      // merge into single file per barcode
 
         pycoqc_json_ch = Channel.empty()                                     // no pycoqc without basecalling
     }
