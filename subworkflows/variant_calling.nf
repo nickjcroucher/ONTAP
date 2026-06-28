@@ -21,6 +21,7 @@ workflow CALL_VARIANTS {
 
     CLAIR3_CALL.out.clair3_gvcf_out.map{ metadata, path -> path }
     | collect
+    | combine(Channel.fromPath(params.target_regions_bed))
     | MERGE_GVCF
     | BCFTOOLS_QUERY
 
