@@ -19,15 +19,17 @@ process CLAIR3_CALL {
     tuple val(meta), path("merge_output.vcf.gz")
     path("run_clair3.log")
 
-
     script:
     """
+    # Resolve symlink to get the real absolute path to the model inside the container
+    MODEL_PATH=\$(readlink -f ${clair3_model})
+
     run_clair3.sh \\
     --bam_fn=${filtered_bam} \\
     --ref_fn=${reference} \\
     --threads=${task.cpus} \\
     --platform="ont" \\
-    --model_path="${clair3_model}" \\
+    --model_path="\${MODEL_PATH}" \\
     --output=. \\
     --sample_name=${meta.ID} \\
     --bed_fn=${target_regions_bed} \\
