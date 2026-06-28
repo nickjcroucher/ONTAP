@@ -19,11 +19,11 @@ workflow CALL_VARIANTS {
     | combine(Channel.fromPath(params.target_regions_bed))
     | CURATE_CONSENSUS
 
-    CLAIR3_CALL.out.clair3_gvcf_out.map{ metadata, path -> path }
-    | collect
-    | combine(Channel.fromPath(params.target_regions_bed))
-    | MERGE_GVCF
-    | BCFTOOLS_QUERY
+    MERGE_GVCF(
+        CLAIR3_CALL.out.clair3_gvcf_out.map{ metadata, path -> path }.collect(),
+        Channel.fromPath(params.target_regions_bed)
+    )
+    BCFTOOLS_QUERY(MERGE_GVCF.out.merged_vcf)
 
     CURATE_CONSENSUS.out.full_consensus.collectFile { meta, file -> [ "merged.fasta", file ] }
     | CONSTRUCT_PHYLO
