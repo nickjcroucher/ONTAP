@@ -32,7 +32,7 @@ process PYTHON_PLOT_COVERAGE {
     label 'mem_1'
     label 'time_30m'
 
-    conda "plotly::plotly=5.21.0"
+    conda "conda-forge::python=3.11 conda-forge::pandas=2.2.2 conda-forge::plotly=5.21.0"
     container "quay.io/sangerpathogens/python_graphics:1.0.0"
 
     // Static publish path to avoid directive-scope issues with qc_stage
