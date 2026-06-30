@@ -19,7 +19,7 @@ process PYTHON_COVERAGE_OVER_DEFINED_REGIONS {
     script:
     coverage_summary = "*coverage_summary.tsv"
     """
-    coverage_over_defined_regions.py \
+    python ${projectDir}/bin/coverage_over_defined_regions.py \
         -s ${samtools_coverage} \
         -b ${target_regions_bed} \
         -t ${params.coverage_reporting_thresholds},${params.coverage_filtering_threshold} \
@@ -47,6 +47,6 @@ process PYTHON_PLOT_COVERAGE {
 
     script:
     """
-    plot_coverage.py .
+    python ${projectDir}/bin/plot_coverage.py .
     """
 }
