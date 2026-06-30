@@ -3,7 +3,7 @@ process PYTHON_COVERAGE_OVER_DEFINED_REGIONS {
     label 'mem_1'
     label 'time_1'
 
-    conda "bioconda::pandas=2.2.1"
+    conda "conda-forge::pandas=2.2.1"
     container "quay.io/sangerpathogens/pandas:2.2.1"
 
     // Static publish path to avoid directive-scope issues with qc_stage
